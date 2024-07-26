@@ -1,0 +1,169 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beer king</title>
+    <link rel="stylesheet" href="{% static 'css/reset.css' %}">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+<header class="bg-light p-3 mb-4">
+    <div class="container d-flex justify-content-between align-items-center">
+        <h1><a href="{% url 'home' %}" class="text-dark">{{ title }}</a></h1>
+        <a href="#" class="text-dark">Корзина<span class="cart-count badge badge-pill badge-secondary ml-2">{% if cart_count %}{{ cart_count }}{% else %}0{% endif %}</span></a>
+    </div>
+</header>
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 mb-4">
+            <div class="row">
+                {% for product in cart_items %}
+                <div class="col-md-6 mb-4" id ="product-{{ product.product.id }}">
+                    <div class="card">
+                        <img src="{{ product.product.image.url }}" alt="" class="card-img-top product-image">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">{{ product.product.name }}</h5>
+                            <p class="card-text">₸{{ product.product.price }}</p>
+                            <div class="quantity-controls mt-2" id="controls-{{ product.product.id }}">
+                                <button class="btn btn-danger decrement-btn" value="{{ product.product.id }}">-</button>
+                                <span class="quantity mx-2" id="quantity-{{ product.product.id }}">{{ product.quantity }}</span>
+                                <button class="btn btn-success increment-btn" value="{{ product.product.id }}">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <h3>Информация о корзине</h3>
+            <div id="cart-summary">
+                <p><strong>Итого товаров:</strong> <span id="cart-total-quantity">0</span></p>
+                <p><strong>Общая сумма:</strong> <span id="cart-total-price">₸0.00</span></p>
+                <a class="btn btn-success btn-block" id="checkout-button" href="{% url 'checkout' %}">Оформить заказ</a>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    $(document).ready(function () {
+    function updateCartSummary() {
+        $.ajax({
+            url: "{% url 'check_cart' %}",
+            type: 'get',
+            data: {
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function (response) {
+                let totalQuantity = 0;
+                let totalPrice = 0;
+                for (let key in response) {
+                    totalQuantity += response[key];
+                    $.ajax({
+                        url: "{% url 'product_detail' id=0 %}".replace('0', key),
+                        type: 'get',
+                        success: function (product) {
+                            totalPrice += product.price * response[key];
+                            $('#cart-total-quantity').text(totalQuantity);
+                            $('#cart-total-price').text(`₸${totalPrice.toFixed(2)}`);
+                        },
+                        error: function (xhr, errmsg, err) {
+                            console.log(xhr.status + ": " + xhr.responseText);
+                        }
+                    });
+                }
+                if (totalQuantity === 0) {
+                    $('#cart-total-quantity').text(0);
+                    $('#cart-total-price').text('₸0.00');
+                }
+            },
+            error: function (xhr, errmsg, err) {
+                console.log(xhr.status + ": " + xhr.responseText);
+            }
+        });
+    }
+
+    updateCartSummary();
+
+    $(document).on('click', '.buy-btn', function (e) {
+        e.preventDefault();
+        let id = $(this).val();
+        $.ajax({
+            url: "{% url 'add_to_cart' id=0 %}".replace('0', id),
+            type: 'post',
+            data: {
+                'id': id,
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function (response) {
+                console.log(response);
+                $('#controls-' + id).removeClass('d-none');
+                $('#quantity-' + id).text(1);
+                $('.cart-count').text(response.cart_count);
+                updateCartSummary();
+            },
+            error: function (xhr, errmsg, err) {
+                console.log(xhr.status + ": " + xhr.responseText);
+            }
+        });
+    });
+
+    $(document).on('click', '.increment-btn', function (e) {
+        e.preventDefault();
+        let id = $(this).val();
+        $.ajax({
+            url: "{% url 'add_to_cart' id=0 %}".replace('0', id),
+            type: 'post',
+            data: {
+                'id': id,
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function (response) {
+                console.log(response);
+                let quantity = parseInt($('#quantity-' + id).text()) + 1;
+                $('#quantity-' + id).text(quantity);
+                $('.cart-count').text(response.cart_count);
+                updateCartSummary();
+            },
+            error: function (xhr, errmsg, err) {
+                console.log(xhr.status + ": " + xhr.responseText);
+            }
+        });
+    });
+
+    $(document).on('click', '.decrement-btn', function (e) {
+        e.preventDefault();
+        let id = $(this).val();
+        $.ajax({
+            url: "{% url 'remove_from_cart' id=0 %}".replace('0', id),
+            type: 'post',
+            data: {
+                'id': id,
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function (response) {
+                console.log(response);
+                let quantity = parseInt($('#quantity-' + id).text()) - 1;
+                if (quantity > 0) {
+                    $('#quantity-' + id).text(quantity);
+                } else {
+                    $('#product-' + id).remove();
+                }
+                $('.cart-count').text(response.cart_count);
+                updateCartSummary();
+            },
+            error: function (xhr, errmsg, err) {
+                console.log(xhr.status + ": " + xhr.responseText);
+            }
+        });
+    });
+});
+
+</script>
+</body>
+</html>

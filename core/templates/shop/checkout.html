@@ -1,0 +1,189 @@
+{% load static %}
+{% load crispy_forms_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Корзина - Beer king</title>
+    <link rel="stylesheet" href="{% static 'css/reset.css' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"/>
+</head>
+<body>
+<header class="bg-light py-3 mb-4">
+    <div class="container d-flex justify-content-between align-items-center">
+        <h1><a href="{% url 'home' %}" class="text-dark">Beer king</a></h1>
+        <a href="{% url 'cart' %}" class="text-dark">Корзина<span class="badge badge-secondary ml-2 cart-count"></span></a>
+    </div>
+</header>
+<div class="container">
+    <h2 class="mb-4">Корзина: <span id="cart-total-quantity">{% if cart_count %}{{ cart_count }}{% else %}0{% endif %}шт</span></h2>
+    <div class="row">
+        {% if cart_items %}
+        {% for item in cart_items %}
+        <div class="col-md-12 mb-4">
+            <div class="card" id="product-{{ item.product.id }}">
+                <div class="row no-gutters">
+                    <div class="col-md-3">
+                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="card-img product-image">
+                    </div>
+                    <div class="col-md-9">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ item.product.name }}</h5>
+                            <p class="card-text">
+                                <span class="price ">₸{{ item.product.price|floatformat:2 }}</span>
+                            </p>
+                            <p class="card-text">
+                                Количество:
+                                <button class="btn btn-outline-danger decrease" value="{{ item.product.id }}" data-action="decrease"
+                                        data-id="{{ item.product.id }}">-
+                                </button>
+                                <span class="mx-2 quantity" id="quantity-{{ item.product.id }}">{{ item.quantity }}</span>
+                                <button class="btn btn-outline-success increase" value="{{ item.product.id }}" data-action="increase"
+                                        data-id="{{ item.product.id }}">+
+                                </button>
+                            </p>
+                            <p class="card-text">
+                                Всего: ₸{{ item.product.price|floatformat:2 }}
+                            </p>
+                            <button class="btn btn-danger remove-btn" data-id="{{ item.product.id }}">Удалить</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="text-center">Ваша корзина пуста.</p>
+        {% endif %}
+    </div>
+    {% if cart_items %}
+    <div class="total mt-4">
+        <h3 id="total">Итого: ₸0 </h3>
+        <form method="post" action="{% url 'checkout' %}">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <button type="submit" class="btn btn-danger btn-lg">Оформить заказ</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+<script>
+    $(document).ready(function () {
+        function updateCartSummary() {
+            $.ajax({
+                url: "{% url 'check_cart' %}",
+                type: 'get',
+                data: {
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function (response) {
+                    let totalQuantity = 0;
+                    let totalPrice = 0;
+                    for (let key in response) {
+                        totalQuantity += response[key];
+                        $.ajax({
+                            url: "{% url 'product_detail' id=0 %}".replace('0', key),
+                            type: 'get',
+                            success: function (product) {
+                                totalPrice += product.price * response[key];
+                                $('#cart-total-quantity').text(` ${totalQuantity} шт`);
+                                $('.cart-count').text(totalQuantity);
+                                $('#total').text(`₸${totalPrice.toFixed(2)}`);
+                                updateItemTotal(key, response[key], product.price);
+                            },
+                            error: function (xhr, errmsg, err) {
+                                console.log(xhr.status + ": " + xhr.responseText);
+                            }
+                        });
+                    }
+                    if (totalQuantity === 0) {
+                        $('#cart-total-quantity').text(0);
+                        $('#total').text('₸0.00');
+                    }
+                },
+                error: function (xhr, errmsg, err) {
+                    console.log(xhr.status + ": " + xhr.responseText);
+                }
+            });
+        }
+
+        function updateItemTotal(id, quantity, price) {
+            let total = quantity * price;
+            $('#product-' + id + ' .card-text:last').text(`Всего: ₸${total.toFixed(2)}`);
+        }
+
+        updateCartSummary();
+
+        $('.increase').click(function () {
+            let id = $(this).data('id');
+            $.ajax({
+                url: "{% url 'add_to_cart' id=0 %}".replace('0', id),
+                type: 'post',
+                data: {
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function (response) {
+                    updateCartSummary();
+                    let newQuantity = response.product_count;
+                    let price = response.price;
+                    $('#quantity-' + id).text(newQuantity);
+                    console.log(id,newQuantity,price);
+                    updateItemTotal(id, newQuantity, price);
+                },
+                error: function (xhr, errmsg, err) {
+                    console.log(xhr.status + ": " + xhr.responseText);
+                }
+            });
+        });
+
+        $('.decrease').click(function () {
+            let id = $(this).data('id');
+            $.ajax({
+                url: "{% url 'remove_from_cart' id=0 %}".replace('0', id),
+                type: 'post',
+                data: {
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function (response) {
+                    updateCartSummary();
+                    let newQuantity = response.product_count;
+                    let price = response.price;
+                    $('#quantity-' + id).text(newQuantity);
+                    if (newQuantity === 0) {
+                        $('#product-' + id).addClass('d-none');
+                    }
+                    updateItemTotal(id, newQuantity, price);
+                },
+                error: function (xhr, errmsg, err) {
+                    console.log(xhr.status + ": " + xhr.responseText);
+                }
+            });
+        });
+
+        $('.remove-btn').click(function () {
+            let id = $(this).data('id');
+            $.ajax({
+                url: "{% url 'remove_from_cart' id=0 %}".replace('0', id),
+                type: 'post',
+                data: {
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function (response) {
+                    location.reload();
+                },
+                error: function (xhr, errmsg, err) {
+                    console.log(xhr.status + ": " + xhr.responseText);
+                }
+            });
+        });
+    });
+
+</script>
+</body>
+</html>

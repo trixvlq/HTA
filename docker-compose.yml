@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  beer-app:
+    build:
+      context: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./core:/core
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=${DATABASE}
+      - DB_NAME=${DBNAME}
+      - DB_USER=${DBUSER}
+      - DB_PASS=${DBPASS}
+      - REDIS_HOST=redis
+    command: >
+      sh -c "python manage.py makemigrations &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    depends_on:
+      - database
+      - redis
+
+  database:
+    image: postgres:alpine
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=${DBNAME}
+      - POSTGRES_USER=${DBUSER}
+      - POSTGRES_PASSWORD=${DBPASS}
+
+  redis:
+    image: redis:7.0.5-alpine
+    hostname: redis
+    ports:
+      - "6379:6379"
+
+  worker:
+    build:
+      context: .
+    hostname: worker
+    entrypoint: celery
+    command: -A core worker --loglevel=info
+    volumes:
+      - ./core:/core
+    depends_on:
+      - redis
+      - database
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=${DATABASE}
+      - DB_NAME=${DBNAME}
+      - DB_USER=${DBUSER}
+      - DB_PASS=${DBPASS}
+      - REDIS_HOST=redis
+
+  beat:
+    build:
+      context: .
+    hostname: beat
+    entrypoint: celery
+    command: -A core beat --loglevel=info
+    volumes:
+      - ./core:/core
+    depends_on:
+      - redis
+      - database
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=${DATABASE}
+      - DB_NAME=${DBNAME}
+      - DB_USER=${DBUSER}
+      - DB_PASS=${DBPASS}
+      - REDIS_HOST=redis
+
+  flower:
+    build:
+      context: .
+    hostname: flower
+    entrypoint: celery
+    command: -A core flower
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./core:/core
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=${DATABASE}
+      - DB_NAME=${DBNAME}
+      - DB_USER=${DBUSER}
+      - DB_PASS=${DBPASS}
+      - REDIS_HOST=redis
