@@ -1,26 +1,6 @@
-{% load static %}
+{% extends 'shop/base.html' %}
 {% load crispy_forms_tags %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Корзина - Beer king</title>
-    <link rel="stylesheet" href="{% static 'css/reset.css' %}">
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"/>
-</head>
-<body>
-<header class="bg-light py-3 mb-4">
-    <div class="container d-flex justify-content-between align-items-center">
-        <h1><a href="{% url 'home' %}" class="text-dark">Beer king</a></h1>
-        <a href="{% url 'cart' %}" class="text-dark">Корзина<span class="badge badge-secondary ml-2 cart-count"></span></a>
-    </div>
-</header>
+{% block content %}
 <div class="container">
     <h2 class="mb-4">Корзина: <span id="cart-total-quantity">{% if cart_count %}{{ cart_count }}{% else %}0{% endif %}шт</span></h2>
     <div class="row">
@@ -187,3 +167,4 @@
 </script>
 </body>
 </html>
+{% endblock %}

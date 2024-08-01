@@ -35,7 +35,8 @@ def checkout(request):
             ]
             cart_items = CartItem.objects.filter(cart=cart)
             for item in cart_items:
-                messages.append(f'{item.product.name} - {item.quantity} шт. на сумму ₸{item.product.price * item.quantity}')
+                messages.append(
+                    f'{item.product.name} - {item.quantity} шт. на сумму ₸{item.product.price * item.quantity}')
 
             mail_message = '\n'.join(messages)
 
@@ -78,6 +79,16 @@ def cart_view(request):
         'title': 'Корзина',
     }
     return render(request, 'shop/cart.html', context)
+
+
+def category_view(request, id):
+    category = get_object_or_404(Category, id=id)
+    products = Product.objects.filter(category=category)
+    context = {
+        'products': products,
+        'title': category.name,
+    }
+    return render(request, 'shop/index.html', context)
 
 
 def add_to_cart(request, id):
